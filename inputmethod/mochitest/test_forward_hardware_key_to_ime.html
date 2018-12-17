@@ -1,0 +1,254 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1110030
+-->
+<head>
+  <title>Basic test for InputMethod API.</title>
+  <script type="application/javascript;version=1.7" src="/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript;version=1.7" src="inputmethod_common.js"></script>
+  <script type="text/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
+  <script type="text/javascript" src="/tests/SimpleTest/NativeKeyCodes.js"></script>
+  <script type="text/javascript" src="bug1110030_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
+</head>
+<body>
+<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1110030">Mozilla Bug 1110030</a>
+<p id="display"></p>
+<pre id="test">
+<script class="testbody" type="application/javascript;version=1.7">
+
+SimpleTest.requestFlakyTimeout("untriaged");
+
+// The input context.
+var gContext = null;
+
+// The test cases.
+var gTests;
+
+inputmethod_setup(function() {
+  dump("keylog======= test_forward_hardware_key_to_ime  inputmethod_setup");
+  setInputContext();
+});
+
+function setInputContext() {
+  dump("keylog======= test_forward_hardware_key_to_ime  setInputContext");
+  let im = navigator.mozInputMethod;
+
+  im.oninputcontextchange = function() {
+    ok(true, 'inputcontextchange event was fired.');
+    im.oninputcontextchange = null;
+
+    gContext = im.inputcontext;
+    if (!gContext || !gContext.hardwareinput) {
+      errorHandler('Should have a non-null inputcontext.hardwareinput');
+      return;
+    }
+
+    prepareTest();
+  };
+
+  // Set current page as an input method.
+  SpecialPowers.wrap(im).setActive(true);
+
+  loadTestFrame();
+}
+
+function prepareTest()
+{
+  dump("keylog======= test_forward_hardware_key_to_ime  prepareTest");
+  // Set the used input method of this test
+  gInputMethod = new InputMethod(gContext);
+
+  gInputMethod.printKeyMap();
+
+  // Add listenr to hardwareinput
+  addKeyEventListeners(gContext.hardwareinput, function (evt) {
+    dump("keylog======= test_forward_hardware_key_to_ime evt.keyCode="+evt.keyCode);
+    dump("$$$$ hardwareinput: " + evt.type + "\n");
+    hardwareEventReceiver(evt);
+    gInputMethod.handler(evt);
+  });
+
+  // Set the test cases
+  gTests = [
+    // Case 1: IME handle the key input
+    {
+      pass: false,
+      key: 'z',
+      hardwareinput: {
+        expectedEvents: kKeyDown | kKeyUp,
+        receivedEvents: 0,
+        expectedKeys: 'zz', // One for keydown, the other for keyup
+        receivedKeys: '',
+      },
+      inputtext: {
+        expectedEvents: kKeyDown | kKeyPress | kKeyUp,
+        receivedEvents: 0,
+        expectedKeys: gInputMethod.mapKey('z') +  // for keydown
+                      gInputMethod.mapKey('z') +  // for keypress
+                      gInputMethod.mapKey('z'),   // for keyup
+        receivedKeys: '',
+      }
+    },
+    // case 2: IME doesn't handle the key input
+    {
+      pass: false,
+      key: '=',
+      hardwareinput: {
+        expectedEvents: kKeyDown | kKeyUp,
+        receivedEvents: 0,
+        expectedKeys: '==', // One for keydown, the other for keyup
+        receivedKeys: '',
+      },
+      inputtext: {
+        expectedEvents: kKeyDown | kKeyPress | kKeyUp,
+        receivedEvents: 0,
+        expectedKeys: '===', // keydown, keypress, keyup all will receive key
+        receivedKeys: '',
+      }
+    },
+  ];
+
+  startTesting();
+}
+
+function startTesting()
+{
+  dump("keylog======= test_forward_hardware_key_to_ime startTesting");
+  dump("@@@@@ startTesting\n");
+  if (gTests.length <= 0) {
+    finish();
+    return;
+  }
+
+  if (!gCurrentTest || gCurrentTest.pass) {
+    gCurrentTest = gTests.shift();
+    fireEvents();
+  }
+
+  verifyResults(startTesting);
+}
+
+function finish()
+{
+  inputmethod_cleanup();
+}
+
+// The method input used in this test
+// and it only handle alphabets
+function InputMethod(inputContext)
+{
+  dump("keylog======= test_forward_hardware_key_to_ime InputMethod");
+  this._inputContext = inputContext;
+  this.init();
+}
+
+InputMethod.prototype = {
+  dump("keylog======= test_forward_hardware_key_to_ime InputMethod init");
+  init: function im_init() {
+    this._setKepMap();
+  },
+
+  handler: function im_handler(evt) {
+    dump("keylog======= test_forward_hardware_key_to_ime evt.keyCode="+evt.keyCode);
+    // Ignore the key if the event is defaultPrevented
+    if (evt.defaultPrevented) {
+      return;
+    }
+
+    // Finish if there is no _inputContext
+    if (!this._inputContext) {
+      return;
+    }
+
+    // Generate the keyDict for inputcontext.keydown/keyup
+    let keyDict = this._generateKeyDict(evt);
+
+    // Ignore the key if IME doesn't want to handle it
+    if (!keyDict) {
+      return;
+    }
+
+    // Call preventDefault if the key will be handled.
+    evt.preventDefault();
+
+    // Call inputcontext.keydown/keyup
+    this._inputContext[evt.type](keyDict);
+  },
+
+  mapKey: function im_keymapping(key) {
+    if (!this._mappingTable) {
+      return;
+    }
+    return this._mappingTable[key];
+  },
+
+  _setKepMap: function im_setKeyMap() {
+    // A table to map characters:
+    // {
+    //   'A': 'B'
+    //   'a': 'b'
+    //   'B': 'C'
+    //   'b': 'c'
+    //   ..
+    //   ..
+    //   'Z': 'A',
+    //   'z': 'a',
+    // }
+    this._mappingTable = {};
+
+    let rotation = 1;
+
+    for (let i = 0 ; i < 26 ; i++) {
+      // Convert 'A' to 'B', 'B' to 'C', ..., 'Z' to 'A'
+      this._mappingTable[String.fromCharCode(i + 'A'.charCodeAt(0))] =
+        String.fromCharCode((i+rotation)%26 + 'A'.charCodeAt(0));
+
+      // Convert 'a' to 'b', 'b' to 'c', ..., 'z' to 'a'
+      this._mappingTable[String.fromCharCode(i + 'a'.charCodeAt(0))] =
+        String.fromCharCode((i+rotation)%26 + 'a'.charCodeAt(0));
+    }
+  },
+
+  _generateKeyDict: function im_generateKeyDict(evt) {
+
+    let mappedKey = this.mapKey(evt.key);
+
+    if (!mappedKey) {
+      return;
+    }
+
+    let keyDict = {
+      key: mappedKey,
+      code: this._guessCodeFromKey(mappedKey),
+      repeat: evt.repeat,
+    };
+
+    return keyDict;
+  },
+
+  _guessCodeFromKey: function im_guessCodeFromKey(key) {
+    if (/^[A-Z]$/.test(key)) {
+      return "Key" + key;
+    } else if (/^[a-z]$/.test(key)) {
+      return "Key" + key.toUpperCase();
+    } else if (/^[0-9]$/.test(key)) {
+      return "Digit" + key.toString();
+    } else {
+      return 0;
+    }
+  },
+
+  printKeyMap: function km_printMappingTable() {
+    for (var p in this._mappingTable){
+      dump(p + '->' + this._mappingTable[p] + '\n');
+    }
+  }
+};
+
+
+</script>
+</pre>
+</body>
+</html>

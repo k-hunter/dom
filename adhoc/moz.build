@@ -1,0 +1,46 @@
+# vim: set filetype=python:
+
+#XPIDL_MODULE = 'dom_adhoc'
+
+XPIDL_SOURCES += [
+]
+
+
+EXPORTS.mozilla.dom.adhoc += [
+    'webidl/MozAdhoc.h',
+]
+
+UNIFIED_SOURCES += [    
+    'webidl/MozAdhoc.cpp',
+]
+
+IPDL_SOURCES +=[
+]
+
+EXTRA_COMPONENTS += [
+#    'AdhocContentHelper.js',
+#    'AdhocContentHelper.manifest',
+#    'nsAdhoc.js',
+#    'nsAdhoc.manifest',
+]
+
+EXTRA_COMPONENTS += [
+#    'ipc/Adhoc.js',
+#    'ipc/Adhoc.manifest',
+]
+
+EXTRA_JS_MODULES += [
+#    'gonk/nfc_consts.js',
+]
+
+XPCSHELL_TESTS_MANIFESTS += [
+#'tests/unit/xpcshell.ini'
+]
+
+include('/ipc/chromium/chromium-config.mozbuild')
+
+FINAL_LIBRARY = 'xul'
+
+if CONFIG['GNU_CXX']:
+    CXXFLAGS += ['-Wshadow']
+
