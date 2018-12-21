@@ -32,7 +32,9 @@ interface MozAdhoc{
 /*diff 2*/
 	/*ConfigParams getConfigParams();//获取平台信息*/
 	/*char* getEthernetIP();//查询以太网ip TODO*/
-	void getEthernetIP();//查询以太网ip
+	/*void getEthernetIP();//查询以太网ip*/
+	/*readonly attribute DOMString adhoc_ip;*/
+	boolean getEthernetIP(IpCallback callback);//查询以太网ip
 
 /*bool 5*/
 	/*short isEnabled();//查询数据传输模式 换int */
@@ -97,6 +99,7 @@ interface MozAdhoc{
 ///////////////////////////////////////////////////////////////////////// 
 };
 
+callback IpCallback = void (DOMString addr, DOMString data);
 callback DataCallback = void (DOMString addr, DOMString data);
 callback NetWorkCallback = void (long statusType, DOMString pParam);
 callback PcmCallback = void (long statusType, DOMString pParam);

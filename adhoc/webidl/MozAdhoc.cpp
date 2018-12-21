@@ -153,6 +153,7 @@ using namespace mozilla;
 using namespace mozilla::dom;
 using namespace mozilla::dom::adhoc;
 
+mozilla::dom::IpCallback* aIpCallback = nullptr;
 mozilla::dom::DataCallback* aDataCallback = nullptr;
 mozilla::dom::NetWorkCallback* aNetWorkCallback = nullptr;
 mozilla::dom::PcmCallback* aPcmCallback = nullptr;
@@ -188,10 +189,19 @@ MozAdhoc::~MozAdhoc()
 	return;
 }
 
+/*
+ *    nsresult
+ *MozAdhoc::GetAdhoc_ip(const nsAString& aAdhoc_ip)
+ *{
+ *    ADHOCLOG("******* enter*********");
+ *    aAdhoc_ip = MozAdhoc::GetAdhocInstance()->adhoc_ip;
+ *    return NS_OK;
+ *}
+ */
 
 
 //动态库地址
-const char *dlib_path = "/system/lib/libadhocyaya.so";
+const char *dlib_path = "/system/lib/libadhocd.so";
 
 //TODO public function to get func by FuncName 
 void
@@ -222,6 +232,25 @@ char*  StringConverter(const nsAString& aPara)
 	char* buffer = cname.BeginWriting();
 	return buffer;
 }
+
+
+//static 
+//void
+/*
+ *    int
+ *OnAdhocIpCallback(char *srcAddr, unsigned char *pData)
+ *{
+ *    //this callback will called by so func 
+ *    ADHOCLOG("###########callback connect result: %s %s,###########",srcAddr,pData);
+ *
+ *    nsAutoString addr, data;
+ *    addr.AssignWithConversion(srcAddr);
+ *    data.AssignWithConversion((const char *)pData);
+ *    MozAdhoc::GetAdhocInstance()->CallbackJsForIp(addr, data);
+ *    return 233;
+ *}
+ */
+
 
 static 
 //void
@@ -282,7 +311,7 @@ MozAdhoc::RegisterCallBackListener(int FuncNum )
 		{
 		case 1:
 			{
-				RegCallBackFuncPointer_data dl_func1 = ( RegCallBackFuncPointer_data)dlsym(handle, "addRecvDataListener");
+				RegCallBackFuncPointer_data dl_func1 = ( RegCallBackFuncPointer_data)dlsym(handle, "addDataRecvListener");
 				ADHOCLOG("dlsym addDataRecvListener successed.");
 				dl_func1(OnDataRecvCallback);//register call back of so 
 				ADHOCLOG("register addDataRecvListener successed.");
@@ -738,11 +767,17 @@ ConfigParams getConfigParams()
 	return ret;
 }
 
-/*char* getEthernetIP();//查询以太网ip*/
-	nsresult 
-MozAdhoc::GetEthernetIP()
+/*char* getEthernetIP();	*/
+//nsresult
+	bool
+	//char*
+MozAdhoc::GetEthernetIP(IpCallback& aCallback)
 {
 	ADHOCLOG("******* enter*********");
+	aIpCallback = &aCallback;
+	char* ret = NULL; 
+	//const char* pData = (const char *)"GetEthernetIP_web_impl";
+	const char* pData = "GetEthernetIP_web_impl";
 	void *handle = dlopen(dlib_path, RTLD_GLOBAL | RTLD_NOW); 
 	if (handle == NULL) {
 		fprintf(stderr, "%s", dlerror());
@@ -750,17 +785,21 @@ MozAdhoc::GetEthernetIP()
 	} else {
 		ADHOCLOG("dlopen successed.");
 		GetEthernetIP_ptr dl_func = (GetEthernetIP_ptr )dlsym(handle, "getEthernetIP");
-		char* ret = dl_func();
+		ret = dl_func();
+
 		ADHOCLOG("return successed. ret=%s",ret);
+		nsAutoString addr, data;
+		//addr.AssignWithConversion(srcAddr);
+		addr.AssignWithConversion(ret);
+		data.AssignWithConversion((const char *)pData);
+		MozAdhoc::GetAdhocInstance()->CallbackJsForIp(addr, data);
 		dlclose(handle);
 	}
-
-	return NS_OK; 
-}
+	return ret;
+	//return NS_OK; 
+}//查询以太网ip
 
 /////////////////////////////////////////////////////////////////////// /////////////////////////////////////////////////////////////////////// 
-
-
 
 
 
@@ -856,6 +895,17 @@ MozAdhoc::AddPcmVoiceListener(PcmCallback& aCallback)
 
 
 /////////////////////////////////////////////////////////////////////// /////////////////////////////////////////////////////////////////////// 
+	nsresult
+MozAdhoc::CallbackJsForIp(const nsAString &aAddr, const nsAString &aData)
+{
+	ADHOCLOG("MozAdhoc::CallbackJsForIp");
+	mozilla::ErrorResult rv;
+	if(aIpCallback){
+	ADHOCLOG("CallbackJsForIp");
+		aIpCallback->Call(aAddr, aData, rv);
+	}
+	return NS_OK;
+}
 	nsresult
 MozAdhoc::CallbackJsForData(const nsAString &aAddr, const nsAString &aData)
 {

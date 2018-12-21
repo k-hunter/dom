@@ -22,6 +22,10 @@ public:
 
 	nsPIDOMWindow* GetParentObject()const{return mWindow;};
 	virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
+	/*
+	 *nsresult
+	 *    GetAdhoc_ip(const nsAString& aAdhoc_ip);
+	 */
 
 	void RegisterCallBackListener(int FuncNum);
 
@@ -91,21 +95,23 @@ public:
 
 	/*ConfigParams getConfigParams();//获取平台信息 TODO*/
 	//ConfigParams 
-		//GetConfigParams();//获取平台信息 TODO
+	//GetConfigParams();//获取平台信息 TODO
 	/*char* getEthernetIP();//查询以太网ip TODO*/
-	nsresult
-		GetEthernetIP();//查询以太网ip
+	//nsresult
+	bool
+		//char* 
+		GetEthernetIP(IpCallback& aCallback);//查询以太网ip
 
 
 
 
 	//////////////////bool 5 TODO ////////////////// ////////////////// ////////////////// ////////////////// //////////////////
 
-bool
-	//int16_t
+	bool
+		//int16_t
 		IsEnabled();//查询数据传输模式 换int 
-bool
-	//int16_t
+	bool
+		//int16_t
 		IsNetWorkAvailable();//网络是否可用
 	nsresult
 		AddDataRecvListener(DataCallback& aCallback);//添加接收数据回调监听器    
@@ -124,6 +130,7 @@ bool
 	{
 		return sAdhocInstance;
 	}
+	nsresult CallbackJsForIp(const nsAString &aAddr, const nsAString &aData);
 	nsresult CallbackJsForData(const nsAString &aAddr, const nsAString &aData);
 	nsresult CallbackJsForNet(const int32_t &statusType, const nsAString &pParam);
 	nsresult CallbackJsForPcm(const int32_t &statusType, const nsAString &pParam);
@@ -133,6 +140,7 @@ private:
 	virtual ~MozAdhoc();
 	static MozAdhoc *sAdhocInstance ;
 
+	//nsString madhoc_ip;
 
 protected:
 	nsCOMPtr<nsPIDOMWindow> mWindow;
