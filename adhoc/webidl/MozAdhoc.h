@@ -22,16 +22,10 @@ public:
 
 	nsPIDOMWindow* GetParentObject()const{return mWindow;};
 	virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
-	/*
-	 *nsresult
-	 *    GetAdhoc_ip(const nsAString& aAdhoc_ip);
-	 */
-
+	
 	void RegisterCallBackListener(int FuncNum);
 
 	void DlopenFuncWithName(char*);
-	//auto DlopenFuncWithName(char*);
-
 
 
 	//////////////////void 8 ////////////////// ////////////////// ////////////////// ////////////////// //////////////////
@@ -48,7 +42,7 @@ public:
 	nsresult
 		SendBDMsg2AdHoc(const nsAString& aGga);//发送北斗消息到自组网
 	nsresult
-		SendExtraData (const nsAString& aType, const nsAString& aData);//执行shell命令
+		SendExtraData ( int16_t aType, const nsAString& aData);//执行shell命令
 	nsresult
 		SetIsNeedHeadForUserData(bool& aIsNeedHead);
 
@@ -97,6 +91,10 @@ public:
 	//ConfigParams 
 	//GetConfigParams();//获取平台信息 TODO
 	/*char* getEthernetIP();//查询以太网ip TODO*/
+
+	bool 	
+		GetConfigParams(ConfigCallback& aCallback);
+
 	//nsresult
 	bool
 		//char* 
@@ -119,18 +117,19 @@ public:
 		AddNetWorkStatusListener(NetWorkCallback& aCallback);//添加网络状态回调监听器
 	nsresult
 		AddPcmVoiceListener(PcmCallback& aCallback);//添加接收话音回调监听器
-
+	nsresult
+		AddPcmVoiceListener_spe_api(PcmCallback& aCallback,const nsAString& aVoiceData);//special test api
 
 	////////////////// ////////////////// ////////////////// ////////////////// ////////////////// //////////////////
-
-
 
 
 	static MozAdhoc *GetAdhocInstance()
 	{
 		return sAdhocInstance;
 	}
-	nsresult CallbackJsForIp(const nsAString &aAddr, const nsAString &aData);
+
+	nsresult CallbackJsForConfig(const nsAString &aPlatform,const nsAString &aUekind,const nsAString &aHw,const nsAString &aOs, int16_t aType);//platform,uekind,hw,os,type
+	nsresult CallbackJsForIp(const nsAString &aIp);
 	nsresult CallbackJsForData(const nsAString &aAddr, const nsAString &aData);
 	nsresult CallbackJsForNet(const int32_t &statusType, const nsAString &pParam);
 	nsresult CallbackJsForPcm(const int32_t &statusType, const nsAString &pParam);
@@ -139,9 +138,6 @@ public:
 private:
 	virtual ~MozAdhoc();
 	static MozAdhoc *sAdhocInstance ;
-
-	//nsString madhoc_ip;
-
 protected:
 	nsCOMPtr<nsPIDOMWindow> mWindow;
 };
